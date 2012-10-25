@@ -1,8 +1,12 @@
-/* Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
+/* linux/arch/arm/mach-msm/board-mecha.c
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
+ * Copyright (C) 2009 Google, Inc.
+ * Copyright (C) 2010 HTC Corporation.
+ * Author: Andy Liu <andy_liu@htc.com>
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -11,43 +15,100 @@
  *
  */
 
-#include <linux/kernel.h>
-#include <linux/irq.h>
-#include <linux/gpio.h>
-#include <linux/platform_device.h>
 #include <linux/delay.h>
-#include <linux/bootmem.h>
+#include <linux/gpio.h>
+#include <linux/init.h>
 #include <linux/io.h>
+#include <linux/kernel.h>
+#include <linux/platform_device.h>
+#include <linux/input.h>
+#include <linux/android_pmem.h>
+#include <linux/mfd/pmic8058.h>
+#include <linux/mfd/marimba.h>
+#include <linux/i2c.h>
+//#include <linux/i2c-msm.h>
+#include <linux/spi/spi.h>
+#include <mach/qdsp5v2_2x/msm_lpa.h>
+#include <mach/qdsp5v2_2x/aux_pcm.h>
+#include <mach/qdsp5v2_2x/mi2s.h>
+#include <mach/qdsp5v2_2x/audio_dev_ctl.h>
+#include <linux/akm8975.h>
+#include <linux/bma150.h>
+#include <linux/capella_cm3602.h>
+#include <linux/cm3628.h>
+#include <linux/lightsensor.h>
+#include <linux/atmel_qt602240.h>
+#include <linux/pmic8058-pwm.h>
+#include <linux/leds-pm8058.h>
+//#include <linux/input/pmic8058-keypad.h>
+#include <linux/proc_fs.h>
+#include <asm/mach-types.h>
+#include <asm/mach/arch.h>
+#include <asm/mach/map.h>
+#include <asm/setup.h>
+#include <asm/mach/flash.h>
+#include <linux/htc_flashlight.h>
+
+#include <mach/system.h>
+#include <mach/gpio.h>
+#include <mach/board.h>
+#include <mach/board_htc.h>
+#include <mach/msm_serial_hs.h>
+
+#include <mach/htc_usb.h>
+#include <mach/hardware.h>
+#include <mach/rpc_hsusb.h>
+#include <mach/msm_spi.h>
+#include <mach/dma.h>
+#include <mach/msm_iomap.h>
+#ifdef CONFIG_PERFLOCK
+#include <mach/perflock.h>
+#endif
+//#include <mach/msm_serial_debugger.h>
+#include <mach/remote_spinlock.h>
+#include <mach/msm_panel.h>
+#include <mach/vreg.h>
+#include <mach/atmega_microp.h>
+#include <mach/htc_battery.h>
+#include <linux/tps65200.h>
+#include <mach/tpa2051d3.h>
+#include <mach/rpc_pmapp.h>
+#include <mach/htc_headset_mgr.h>
+#include <mach/htc_headset_gpio.h>
+#include <mach/htc_headset_pmic.h>
+
+#include "pmic.h"
+#include "board-mecha.h"
+#include "devices.h"
+#include "proc_comm.h"
+#include "smd_private.h"
+#include "spm.h"
+#include "pm.h"
+#include <mach/socinfo.h>
+/*#ifdef CONFIG_MSM_SSBI
+#include <mach/msm_ssbi.h>
+#endif*/
+#include <mach/smsc251x.h>
+
+#include <mach/sdio_al.h>
+
+#include <linux/irq.h>
+#include <linux/platform_device.h>
+#include <linux/bootmem.h>
 #ifdef CONFIG_SPI_QSD
 #include <linux/spi/spi.h>
 #endif
-#include <linux/mfd/pmic8058.h>
 #include <linux/leds.h>
-#include <linux/mfd/marimba.h>
-#include <linux/i2c.h>
 #include <linux/lightsensor.h>
 #include <linux/input.h>
+#include <linux/capella_cm3602.h>
 #include <linux/atmel_qt602240.h>
-#include <linux/synaptics_i2c_rmi.h>
-#include <linux/elan_ktf2k.h>
 #include <mach/atmega_microp.h>
-#include <linux/akm8975.h>
-#include <linux/bma150.h>
-#include <linux/isl29028.h>
 #include <linux/power_supply.h>
-#include <linux/leds-pm8058.h>
 #include <linux/msm_adc.h>
 #include <linux/dma-mapping.h>
-#include <linux/proc_fs.h>
-#include <linux/htc_flashlight.h>
-#include <asm/mach-types.h>
-#include <asm/mach/arch.h>
-#include <asm/setup.h>
 #include <mach/panel_id.h>
-
-#include <mach/system.h>
 #include <mach/mpp.h>
-#include <mach/board.h>
 #include <mach/camera-7x30.h>
 #include <mach/memory.h>
 #include <mach/msm_iomap.h>
@@ -56,42 +117,16 @@
 #else
 #include <linux/usb/msm_hsusb.h>
 #endif
-#include <mach/rpc_hsusb.h>
-#include <mach/msm_spi.h>
-#include <mach/dma.h>
 #include <linux/android_pmem.h>
 #include <linux/input/msm_ts.h>
-//#include <mach/pmic.h>
 #include <mach/rpc_pmapp.h>
-#ifdef CONFIG_MSM7KV2_AUDIO
-#include <mach/qdsp5v2_2x/msm_lpa.h>
-#include <mach/qdsp5v2_2x/aux_pcm.h>
-#include <mach/qdsp5v2_2x/mi2s.h>
-#include <mach/qdsp5v2_2x/audio_dev_ctl.h>
-#endif
-#ifdef CONFIG_MSM7KV2_1X_AUDIO
-#include <mach/qdsp5v2_1x/msm_lpa.h>
-#include <mach/qdsp5v2_1x/aux_pcm.h>
-#include <mach/qdsp5v2_1x/mi2s.h>
-#include <mach/qdsp5v2_1x/audio_dev_ctl.h>
-#endif
-#include <mach/htc_battery.h>
-#include <linux/ds2746_battery.h>
-#include <linux/tps65200.h>
 #include <mach/rpc_server_handset.h>
-#include <mach/msm_tsif.h>
 #include <mach/socinfo.h>
 #include <mach/msm_memtypes.h>
 #include <asm/mach/mmc.h>
-#include <asm/mach/flash.h>
 #include <mach/vreg.h>
 #include <linux/platform_data/qcom_crypto_device.h>
-#include <mach/htc_headset_mgr.h>
-#include <mach/htc_headset_gpio.h>
-#include <mach/htc_headset_pmic.h>
 #include <mach/htc_headset_microp.h>
-
-#include "devices.h"
 #include "timer.h"
 #ifdef CONFIG_USB_G_ANDROID
 #include <mach/htc_usb.h>
@@ -99,10 +134,8 @@
 #include <linux/usb/android.h>
 #include <mach/usbdiag.h>
 #endif
-#include "proc_comm.h"
 #include "pm.h"
 #include "pm-boot.h"
-#include "spm.h"
 #include "acpuclock.h"
 #include <mach/dal_axi.h>
 #include <mach/msm_serial_hs.h>
@@ -113,20 +146,15 @@
 #include <mach/qdsp5v2_2x/audio_dev_ctl.h>
 #include <mach/sdio_al.h>
 #include "smd_private.h"
-#include "board-spade.h"
 #include "board-msm7x30-regulator.h"
 #include <mach/board_htc.h>
-#ifdef CONFIG_PERFLOCK
-#include <mach/perflock.h>
-#endif
+#include <mach/cable_detect.h>
 #ifdef CONFIG_BT
 #include <mach/htc_bdaddress.h>
 #endif
-#ifdef CONFIG_USB_ACCESSORY_DETECT_BY_ADC
-#include <mach/cable_detect.h>
-#endif
 
-/*#define PMIC_GPIO_INT		27*/
+
+#define PMIC_GPIO_INT		27
 
 unsigned int engineerid;
 
@@ -137,14 +165,16 @@ void __init mecha_microp_init(void);
 static uint opt_disable_uart3;
 module_param_named(disable_uart3, opt_disable_uart3, uint, 0);
 
+static int (*mecha_smsc251x_switch_cb)(uint8_t);
+static void mecha_usb_hub_gpio_config(bool);
 
 #ifdef CONFIG_USB_ANDROID
 static void mecha_config_serial_debug_gpios(int);
 static void config_mecha_usb_uart_gpios(int);
 static int mecha_china_ac_detect(void);
 static void mecha_usb_hub_enable(bool enable);
-static void mecha_usb_hub_gpio_config(bool);
-static int (*mecha_smsc251x_switch_cb)(uint8_t);
+//static void mecha_usb_hub_gpio_config(bool);
+//static int (*mecha_smsc251x_switch_cb)(uint8_t);
 static void mecha_change_phy_voltage(int cable_in);
 
 static int mecha_phy_init_seq[] = { 0x06, 0x36, 0x0C, 0x31, 0x31, 0x32, 0x1, 0x0D, 0x1, 0x10, -1 };
@@ -362,7 +392,544 @@ static int flashlight_control(int mode)
 	return aat1271_flashlight_control(mode);
 }
 
+/*static int pm8058_gpios_init(struct pm8058_chip *pm_chip)
+{
+	// touch panel
+	pm8058_gpio_cfg(MECHA_TP_RSTz, PM_GPIO_DIR_OUT, PM_GPIO_OUT_BUF_CMOS, 1, PM_GPIO_PULL_NO,
+		PM_GPIO_VIN_L5, PM_GPIO_STRENGTH_HIGH, PM_GPIO_FUNC_NORMAL, 0);
 
+	// led
+	pm8058_gpio_cfg(MECHA_GREEN_LED, PM_GPIO_DIR_OUT, PM_GPIO_OUT_BUF_CMOS, 1, PM_GPIO_PULL_NO,
+		PM_GPIO_VIN_L5, PM_GPIO_STRENGTH_HIGH, PM_GPIO_FUNC_2, 0);
+	pm8058_gpio_cfg(MECHA_AMBER_LED, PM_GPIO_DIR_OUT, PM_GPIO_OUT_BUF_CMOS, 1, PM_GPIO_PULL_NO,
+		PM_GPIO_VIN_L5, PM_GPIO_STRENGTH_HIGH, PM_GPIO_FUNC_2, 0);
+//	pm8058_gpio_cfg(MECHA_KEYPAD_LED, PM_GPIO_DIR_OUT, PM_GPIO_OUT_BUF_CMOS, 0, PM_GPIO_PULL_NO,
+		PM_GPIO_VIN_S3, PM_GPIO_STRENGTH_HIGH, PM_GPIO_FUNC_2, 0);
+
+	// Headset
+printk(KERN_ERR "%s: Headset PMIC GPIO init\n", __func__);
+	pm8058_gpio_cfg(MECHA_AUD_HP_DETz, PM_GPIO_DIR_IN, 0, 0,
+			PM_GPIO_PULL_UP_31P5, PM_GPIO_VIN_S3, 0,
+			PM_GPIO_FUNC_NORMAL, 0);
+
+	// direct key
+	pm8058_gpio_cfg(MECHA_VOL_UP, PM_GPIO_DIR_IN, 0, 0, PM_GPIO_PULL_UP_31P5, PM_GPIO_VIN_S3, 0, PM_GPIO_FUNC_NORMAL, 0);
+	pm8058_gpio_cfg(MECHA_VOL_DN, PM_GPIO_DIR_IN, 0, 0, PM_GPIO_PULL_UP_31P5, PM_GPIO_VIN_S3, 0, PM_GPIO_FUNC_NORMAL, 0);
+
+	// sd detect
+	pm8058_gpio_cfg(MECHA_GPIO_SDMC_CD_N, PM_GPIO_DIR_IN, 0, 0, PM_GPIO_PULL_UP_31P5, PM_GPIO_VIN_L5, 0, PM_GPIO_FUNC_NORMAL, 0);
+
+
+	if ((engineerid & 0x3) == 0x0)
+	pm8058_gpio_cfg(MECHA_ALS_SHUTDOWN, PM_GPIO_DIR_OUT, PM_GPIO_OUT_BUF_CMOS, 0, PM_GPIO_PULL_NO,
+		PM_GPIO_VIN_L5, PM_GPIO_STRENGTH_HIGH, PM_GPIO_FUNC_NORMAL, 0);
+	//else
+		//pm8058_gpio_cfg(MECHA_ALS_SHUTDOWN, PM_GPIO_DIR_IN, 0, 0, PM_GPIO_PULL_UP_31P5, PM_GPIO_VIN_L5, 0, PM_GPIO_FUNC_NORMAL, 0);
+	// P-sensor and light sensor 
+	pm8058_gpio_cfg(MECHA_GPIO_PS_EN, PM_GPIO_DIR_OUT, PM_GPIO_OUT_BUF_CMOS, 0, PM_GPIO_PULL_NO,
+		PM_GPIO_VIN_L5, PM_GPIO_STRENGTH_HIGH, PM_GPIO_FUNC_NORMAL, 0);
+	pm8058_gpio_cfg(MECHA_GPIO_PS_INT_N, PM_GPIO_DIR_IN, 0, 0, PM_GPIO_PULL_DN, PM_GPIO_VIN_L5, 0, PM_GPIO_FUNC_NORMAL, 0);
+
+	// MicroP INT
+	pm8058_gpio_cfg(MECHA_GPIO_UP_INT_N, PM_GPIO_DIR_IN, 0, 0, PM_GPIO_PULL_NO, PM_GPIO_VIN_L5, 0, PM_GPIO_FUNC_NORMAL, 0);
+
+	// G Sensor INT
+	pm8058_gpio_cfg(MECHA_GPIO_GSENSOR_INT_N, PM_GPIO_DIR_IN, 0, 0, PM_GPIO_PULL_NO, PM_GPIO_VIN_L5, 0, PM_GPIO_FUNC_NORMAL, 0);
+	// E-Compass INT
+	pm8058_gpio_cfg(MECHA_GPIO_COMPASS_INT_N, PM_GPIO_DIR_IN, 0, 0, PM_GPIO_PULL_NO, PM_GPIO_VIN_L5, 0, PM_GPIO_FUNC_NORMAL, 0);
+	// uP Reset
+	pm8058_gpio_cfg(MECHA_GPIO_UP_RESET_N, PM_GPIO_DIR_OUT, PM_GPIO_OUT_BUF_CMOS, 1, PM_GPIO_PULL_NO,
+			PM_GPIO_VIN_L5, PM_GPIO_STRENGTH_HIGH, PM_GPIO_FUNC_NORMAL, 0);
+
+	// usb hub switch
+	if (system_rev >= 2)
+		pm8058_gpio_cfg(MECHA_GPIO_USB_HUB_SWITCH, PM_GPIO_DIR_OUT, PM_GPIO_OUT_BUF_CMOS, 0,
+			PM_GPIO_PULL_NO, PM_GPIO_VIN_L5, PM_GPIO_STRENGTH_HIGH, PM_GPIO_FUNC_NORMAL, 0);
+	// usb hub reset
+	pm8058_gpio_cfg(MECHA_USB_HUB_RESET, PM_GPIO_DIR_OUT, PM_GPIO_OUT_BUF_CMOS, 0, PM_GPIO_PULL_NO,
+		PM_GPIO_VIN_L5, PM_GPIO_STRENGTH_HIGH, PM_GPIO_FUNC_NORMAL, 0);
+	// usb hub power
+	pm8058_gpio_cfg(MECHA_USB_HUB_PWR, PM_GPIO_DIR_OUT, PM_GPIO_OUT_BUF_CMOS, 0, PM_GPIO_PULL_NO,
+		PM_GPIO_VIN_L5, PM_GPIO_STRENGTH_HIGH, PM_GPIO_FUNC_NORMAL, 0);
+
+	return 0;
+}*/
+
+static int pm8058_gpios_init(void)
+{
+	int rc;
+
+	static struct pm_gpio green_led = {
+		.direction      = PM_GPIO_DIR_OUT,
+		.output_buffer  = PM_GPIO_OUT_BUF_CMOS,
+		.output_value   = 1,
+		.pull           = PM_GPIO_PULL_NO,
+		.vin_sel        = PM_GPIO_VIN_L17,
+		.out_strength   = PM_GPIO_STRENGTH_HIGH,
+		.function       = PM_GPIO_FUNC_2,
+		.inv_int_pol    = 0,
+	};
+
+	static struct pm_gpio amber_led = {
+		.direction      = PM_GPIO_DIR_OUT,
+		.output_buffer  = PM_GPIO_OUT_BUF_CMOS,
+		.output_value   = 1,
+		.pull           = PM_GPIO_PULL_NO,
+		.vin_sel        = PM_GPIO_VIN_L17,
+		.out_strength   = PM_GPIO_STRENGTH_HIGH,
+		.function       = PM_GPIO_FUNC_2,
+		.inv_int_pol    = 0,
+	};
+
+/*	static struct pm_gpio oj_act = {
+		.direction      = PM_GPIO_DIR_IN,
+		.output_buffer  = 0,
+		.output_value   = 0,
+		.pull           = PM_GPIO_PULL_UP_31P5,
+		.vin_sel        = PM8058_GPIO_VIN_S3,
+		.out_strength   = 0,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};*/
+
+	static struct pm_gpio tp_rstz = {
+		.direction      = PM_GPIO_DIR_OUT,
+		.output_buffer  = PM_GPIO_OUT_BUF_CMOS,
+		.output_value   = 1,
+		.pull           = PM_GPIO_PULL_NO,
+		.vin_sel        = PM8058_GPIO_VIN_L5,
+		.out_strength   = PM_GPIO_STRENGTH_HIGH,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};
+
+	static struct pm_gpio als_shutdown = {
+		.direction      = PM_GPIO_DIR_OUT,
+		.output_buffer  = PM_GPIO_OUT_BUF_CMOS,
+		.output_value   = 0,
+		.pull           = PM_GPIO_PULL_NO,
+		.vin_sel        = PM_GPIO_VIN_L17,
+		.out_strength   = PM_GPIO_STRENGTH_HIGH,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};
+
+/*	static struct pm_gpio home_key = {
+		.direction      = PM_GPIO_DIR_IN,
+		.output_buffer  = 0,
+		.output_value   = 0,
+		.pull           = PM_GPIO_PULL_UP_31P5,
+		.vin_sel        = PM8058_GPIO_VIN_S3,
+		.out_strength   = 0,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};
+
+	static struct pm_gpio back_key = {
+		.direction      = PM_GPIO_DIR_IN,
+		.output_buffer  = 0,
+		.output_value   = 0,
+		.pull           = PM_GPIO_PULL_UP_31P5,
+		.vin_sel        = PM8058_GPIO_VIN_S3,
+		.out_strength   = 0,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};
+
+	static struct pm_gpio menu_key = {
+		.direction      = PM_GPIO_DIR_IN,
+		.output_buffer  = 0,
+		.output_value   = 0,
+		.pull           = PM_GPIO_PULL_UP_31P5,
+		.vin_sel        = PM8058_GPIO_VIN_S3,
+		.out_strength   = 0,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};
+
+	static struct pm_gpio send_key = {
+		.direction      = PM_GPIO_DIR_IN,
+		.output_buffer  = 0,
+		.output_value   = 0,
+		.pull           = PM_GPIO_PULL_UP_31P5,
+		.vin_sel        = PM8058_GPIO_VIN_S3,
+		.out_strength   = 0,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};*/
+
+	static struct pm_gpio vol_up = {
+		.direction      = PM_GPIO_DIR_IN,
+		.output_buffer  = 0,
+		.output_value   = 0,
+		.pull           = PM_GPIO_PULL_UP_31P5,
+		.vin_sel        = PM8058_GPIO_VIN_S3,
+		.out_strength   = 0,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};
+
+	static struct pm_gpio vol_dn = {
+		.direction      = PM_GPIO_DIR_IN,
+		.output_buffer  = 0,
+		.output_value   = 0,
+		.pull           = PM_GPIO_PULL_UP_31P5,
+		.vin_sel        = PM8058_GPIO_VIN_S3,
+		.out_strength   = 0,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};
+
+static struct pm_gpio gpio_flash_en = {
+		.direction      = PM_GPIO_DIR_OUT,
+		.output_buffer  = PM_GPIO_OUT_BUF_CMOS,
+		.output_value   = 0,
+		.pull           = PM_GPIO_PULL_NO,
+		.vin_sel        = PM_GPIO_VIN_L17,
+		.out_strength   = PM_GPIO_STRENGTH_HIGH,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};
+
+/*	static struct pm_gpio cam_step1 = {
+		.direction      = PM_GPIO_DIR_IN,
+		.output_buffer  = 0,
+		.output_value   = 0,
+		.pull           = PM_GPIO_PULL_UP_31P5,
+		.vin_sel        = PM8058_GPIO_VIN_S3,
+		.out_strength   = 0,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};
+
+	static struct pm_gpio cam_step2 = {
+		.direction      = PM_GPIO_DIR_IN,
+		.output_buffer  = 0,
+		.output_value   = 0,
+		.pull           = PM_GPIO_PULL_UP_31P5,
+		.vin_sel        = PM8058_GPIO_VIN_S3,
+		.out_strength   = 0,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};*/
+
+	static struct pm_gpio headset = {
+		.direction      = PM_GPIO_DIR_IN,
+		.output_buffer  = 0,
+		.output_value   = 0,
+		.pull           = PM_GPIO_PULL_UP_31P5,
+		.vin_sel        = PM8058_GPIO_VIN_S3,
+		.out_strength   = 0,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};
+
+static struct pm_gpio gpio_ps_en = {
+		.direction      = PM_GPIO_DIR_OUT,
+		.output_buffer  = PM_GPIO_OUT_BUF_CMOS,
+		.output_value   = 0,
+		.pull           = PM_GPIO_PULL_NO,
+		.vin_sel        = PM_GPIO_VIN_L17,
+		.out_strength   = PM_GPIO_STRENGTH_HIGH,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};
+
+static struct pm_gpio gpio_ps_int_n = {
+		.direction      = PM_GPIO_DIR_IN,
+		.output_buffer  = 0,
+		.output_value   = 0,
+		.pull           = PM_GPIO_PULL_DN,
+		.vin_sel        = PM_GPIO_VIN_L17,
+		.out_strength   = 0,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};
+
+static struct pm_gpio gpio_up_int_n = {
+		.direction      = PM_GPIO_DIR_IN,
+		.output_buffer  = 0,
+		.output_value   = 0,
+		.pull           = PM_GPIO_PULL_NO,
+		.vin_sel        = PM_GPIO_VIN_L17,
+		.out_strength   = 0,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};
+
+static struct pm_gpio gpio_gsensor_int_n = {
+		.direction      = PM_GPIO_DIR_IN,
+		.output_buffer  = 0,
+		.output_value   = 0,
+		.pull           = PM_GPIO_PULL_NO,
+		.vin_sel        = PM_GPIO_VIN_L17,
+		.out_strength   = 0,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};
+
+static struct pm_gpio gpio_compass_int_n = {
+		.direction      = PM_GPIO_DIR_IN,
+		.output_buffer  = 0,
+		.output_value   = 0,
+		.pull           = PM_GPIO_PULL_NO,
+		.vin_sel        = PM_GPIO_VIN_L17,
+		.out_strength   = 0,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};
+
+static struct pm_gpio gpio_up_reset_n = {
+		.direction      = PM_GPIO_DIR_OUT,
+		.output_buffer  = PM_GPIO_OUT_BUF_CMOS,
+		.output_value   = 1,
+		.pull           = PM_GPIO_PULL_NO,
+		.vin_sel        = PM_GPIO_VIN_L17,
+		.out_strength   = PM_GPIO_STRENGTH_HIGH,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};
+
+static struct pm_gpio gpio_usb_hub_switch = {
+		.direction      = PM_GPIO_DIR_OUT,
+		.output_buffer  = PM_GPIO_OUT_BUF_CMOS,
+		.output_value   = 0,
+		.pull           = PM_GPIO_PULL_NO,
+		.vin_sel        = PM_GPIO_VIN_L17,
+		.out_strength   = PM_GPIO_STRENGTH_HIGH,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};
+
+static struct pm_gpio usb_hub_reset = {
+		.direction      = PM_GPIO_DIR_OUT,
+		.output_buffer  = PM_GPIO_OUT_BUF_CMOS,
+		.output_value   = 0,
+		.pull           = PM_GPIO_PULL_NO,
+		.vin_sel        = PM_GPIO_VIN_L17,
+		.out_strength   = PM_GPIO_STRENGTH_HIGH,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};
+
+static struct pm_gpio usb_hub_pwr = {
+		.direction      = PM_GPIO_DIR_OUT,
+		.output_buffer  = PM_GPIO_OUT_BUF_CMOS,
+		.output_value   = 0,
+		.pull           = PM_GPIO_PULL_NO,
+		.vin_sel        = PM_GPIO_VIN_L17,
+		.out_strength   = PM_GPIO_STRENGTH_HIGH,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};
+
+/*	static struct pm_gpio ps_en = {
+		.direction      = PM_GPIO_DIR_OUT,
+		.output_buffer  = PM_GPIO_OUT_BUF_CMOS,
+		.output_value   = 0,
+		.pull           = PM_GPIO_PULL_NO,
+		.vin_sel        = PM8058_GPIO_VIN_L5,
+		.out_strength   = PM_GPIO_STRENGTH_HIGH,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};
+
+	static struct pm_gpio spk_eno = {
+		.direction      = PM_GPIO_DIR_OUT,
+		.output_buffer  = PM_GPIO_OUT_BUF_CMOS,
+		.output_value   = 1,
+		.pull           = PM_GPIO_PULL_NO,
+		.vin_sel        = PM8058_GPIO_VIN_S3,
+		.out_strength   = PM_GPIO_STRENGTH_HIGH,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};*/
+
+
+/*	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_OJ_ACTION), &oj_act);
+	if (rc) {
+		printk(KERN_ERR "%s OJ_ACTION config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s OJ_ACTION config ok\n", __func__);*/
+
+	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_GREEN_LED), &green_led);
+	if (rc) {
+		printk(KERN_ERR "%s GREEN_LED config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s GREEN_LED config ok\n", __func__);
+
+	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_AMBER_LED), &amber_led);
+	if (rc) {
+		printk(KERN_ERR "%s AMBER_LED config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s AMBER_LED config ok\n", __func__);
+
+	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_TP_RSTz), &tp_rstz);
+	if (rc) {
+		printk(KERN_ERR "%s TP_RSTz config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s TP_RSTz config ok\n", __func__);
+
+	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_VOL_UP), &vol_up);
+	if (rc) {
+		printk(KERN_ERR "%s VOL_UP config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s VOL_UP config ok\n", __func__);
+	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_VOL_DN), &vol_dn);
+	if (rc) {
+		printk(KERN_ERR "%s VOL_DN config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s VOL_DN config ok\n", __func__);
+
+	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_GPIO_FLASH_EN), &gpio_flash_en);
+	if (rc) {
+		printk(KERN_ERR "%s GPIO_FLASH_EN config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s GPIO_FLASH_EN config ok\n", __func__);
+
+	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_ALS_SHUTDOWN), &als_shutdown);
+	if (rc) {
+		printk(KERN_ERR "%s ALS_SHUTDOWN config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s ALS_SHUTDOWN config ok\n", __func__);
+
+	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_GPIO_PS_EN), &gpio_ps_en);
+	if (rc) {
+		printk(KERN_ERR "%s GPIO_PS_EN config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s GPIO_PS_EN config ok\n", __func__);
+
+	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_GPIO_PS_INT_N), &gpio_ps_int_n);
+	if (rc) {
+		printk(KERN_ERR "%s GPIO_PS_INT_N config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s GPIO_PS_INT_N config ok\n", __func__);
+
+	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_GPIO_UP_INT_N), &gpio_up_int_n);
+	if (rc) {
+		printk(KERN_ERR "%s GPIO_UP_INT_N config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s GPIO_UP_INT_N config ok\n", __func__);
+
+
+/*	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_HOME_KEY), &home_key);
+	if (rc) {
+		printk(KERN_ERR "%s HOME_KEY config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s HOME_KEY config ok\n", __func__);
+
+	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_BACK_KEY), &back_key);
+	if (rc) {
+		printk(KERN_ERR "%s BACK_KEY config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s BACK_KEY config ok\n", __func__);
+
+	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_MENU_KEY), &menu_key);
+	if (rc) {
+		printk(KERN_ERR "%s MENU_KEY config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s MENU_KEY config ok\n", __func__);
+
+	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_SEND_KEY), &send_key);
+	if (rc) {
+		printk(KERN_ERR "%s SEND_KEY config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s SEND_KEY config ok\n", __func__);
+
+	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_CAM_STEP1), &cam_step1);
+	if (rc) {
+		printk(KERN_ERR "%s CAM_STEP1 config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s CAM_STEP1 config ok\n", __func__);
+
+	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_CAM_STEP2), &cam_step2);
+	if (rc) {
+		printk(KERN_ERR "%s CAM_STEP2 config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s CAM_STEP2 config ok\n", __func__);*/
+
+	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_GPIO_GSENSOR_INT_N), &gpio_gsensor_int_n);
+	if (rc) {
+		printk(KERN_ERR "%s GPIO_GSENSOR_INT_N config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s GPIO_GSENSOR_INT_N config ok\n", __func__);
+
+	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_GPIO_COMPASS_INT_N), &gpio_compass_int_n);
+	if (rc) {
+		printk(KERN_ERR "%s GPIO_COMPASS_INT_N config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s GPIO_COMPASS_INT_N config ok\n", __func__);
+
+	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_GPIO_UP_RESET_N), &gpio_up_reset_n);
+	if (rc) {
+		printk(KERN_ERR "%s GPIO_UP_RESET_N config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s GPIO_UP_RESET_N config ok\n", __func__);
+
+	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_GPIO_USB_HUB_SWITCH), &gpio_usb_hub_switch);
+	if (rc) {
+		printk(KERN_ERR "%s GPIO_USB_HUB_SWITCH config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s GPIO_USB_HUB_SWITCH config ok\n", __func__);
+
+	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_USB_HUB_RESET), &usb_hub_reset);
+	if (rc) {
+		printk(KERN_ERR "%s USB_HUB_RESET config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s USB_HUB_RESET config ok\n", __func__);
+
+	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_USB_HUB_PWR), &usb_hub_pwr);
+	if (rc) {
+		printk(KERN_ERR "%s USB_HUB_PWR config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s USB_HUB_PWR config ok\n", __func__);
+
+	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_AUD_HP_DETz), &headset);
+	if (rc) {
+		printk(KERN_ERR "%s AUD_HP_DETz config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s AUD_HP_DETz config ok\n", __func__);
+
+/*	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_PS_SHDN), &ps_en);
+	if (rc) {
+		printk(KERN_ERR "%s PS_SHDN config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s PS_SHDN config ok\n", __func__);
+
+	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(MECHA_AUD_SPK_ENO), &spk_eno);
+	if (rc) {
+		printk(KERN_ERR "%s AUD_SPK_ENO config failed\n", __func__);
+		return rc;
+	} else
+	  printk(KERN_ERR "%s AUD_SPK_ENO config ok\n", __func__);*/
+
+	return 0;
+}
 
 /* HTC_HEADSET_GPIO Driver */
 static struct htc_headset_gpio_platform_data htc_headset_gpio_data = {
@@ -425,13 +992,12 @@ static struct htc_battery_platform_data htc_battery_pdev_data = {
 	.guage_driver = GUAGE_MODEM,
 	.charger = SWITCH_CHARGER_TPS65200,
 	.m2a_cable_detect = 1,
-	.int_data.chg_int = MSM_GPIO_TO_INT(PM8058_GPIO_PM_TO_SYS(MECHA_GPIO_CHG_INT)),
 };
 
 static struct platform_device htc_battery_pdev = {
 	.name = "htc_battery",
-	.id = -1,
-	.dev    = {
+	.id   = -1,
+	.dev  = {
 		.platform_data = &htc_battery_pdev_data,
 	},
 };
@@ -487,7 +1053,126 @@ static struct platform_device microp_devices[] = {
 	}, */
 };
 
+static struct microp_i2c_platform_data microp_data = {
+	.num_devices = ARRAY_SIZE(microp_devices),
+	.microp_devices = microp_devices,
+	.gpio_reset = PM8058_GPIO_PM_TO_SYS(MECHA_GPIO_UP_RESET_N),
+};
 
+static struct pm8058_led_config pm_led_config[] = {
+	{
+		.name = "green",
+		.type = PM8058_LED_RGB,
+		.bank = 0,
+		.pwm_size = 9,
+		.clk = PM_PWM_CLK_32KHZ,
+		.pre_div = PM_PWM_PREDIVIDE_2,
+		.pre_div_exp = 1,
+		.pwm_value = 511,
+	},
+	{
+		.name = "amber",
+		.type = PM8058_LED_RGB,
+		.bank = 1,
+		.pwm_size = 9,
+		.clk = PM_PWM_CLK_32KHZ,
+		.pre_div = PM_PWM_PREDIVIDE_2,
+		.pre_div_exp = 1,
+		.pwm_value = 511,
+	},
+	{
+		.name = "button-backlight",
+		.type = PM8058_LED_CURRENT,
+		.bank = 3,
+		.flags = PM8058_LED_LTU_EN | PM8058_LED_FADE_EN,
+		.period_us = USEC_PER_SEC / 1000,
+		.start_index = 0,
+		.duites_size = 8,
+		.duty_time_ms = 32,
+		.lut_flag = PM_PWM_LUT_RAMP_UP | PM_PWM_LUT_PAUSE_HI_EN,
+		.out_current = 200,
+	},
+
+};
+
+static struct pm8058_led_platform_data pm8058_leds_data = {
+	.led_config = pm_led_config,
+	.num_leds = ARRAY_SIZE(pm_led_config),
+	.duties = {0, 15, 30, 45, 60, 75, 90, 100,
+		   100, 90, 75, 60, 45, 30, 15, 0,
+		   0, 0, 0, 0, 0, 0, 0, 0,
+		   0, 0, 0, 0, 0, 0, 0, 0,
+		   0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0},
+};
+
+static struct platform_device pm8058_leds = {
+	.name	= "leds-pm8058",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &pm8058_leds_data,
+	},
+};
+
+
+static struct pm8058_led_config pm_led_config_XC[] = {
+	{
+		.name = "green",
+		.type = PM8058_LED_RGB,
+		.bank = 0,
+		.pwm_size = 9,
+		.clk = PM_PWM_CLK_32KHZ,
+		.pre_div = PM_PWM_PREDIVIDE_2,
+		.pre_div_exp = 1,
+		.pwm_value = 511,
+	},
+	{
+		.name = "amber",
+		.type = PM8058_LED_RGB,
+		.bank = 1,
+		.pwm_size = 9,
+		.clk = PM_PWM_CLK_32KHZ,
+		.pre_div = PM_PWM_PREDIVIDE_2,
+		.pre_div_exp = 1,
+		.pwm_value = 511,
+	},
+	{
+		.name = "button-backlight",
+		.type = PM8058_LED_DRVX,
+		.bank = 6,
+		.flags = PM8058_LED_LTU_EN | PM8058_LED_FADE_EN,
+		.period_us = USEC_PER_SEC / 1000,
+		.start_index = 0,
+		.duites_size = 8,
+		.duty_time_ms = 32,
+		.lut_flag = PM_PWM_LUT_RAMP_UP | PM_PWM_LUT_PAUSE_HI_EN,
+		.out_current = 6,
+	},
+
+};
+
+static struct pm8058_led_platform_data pm8058_leds_data_XC = {
+	.led_config = pm_led_config_XC,
+	.num_leds = ARRAY_SIZE(pm_led_config),
+	.duties = {0, 15, 30, 45, 60, 75, 90, 100,
+		   100, 90, 75, 60, 45, 30, 15, 0,
+		   0, 0, 0, 0, 0, 0, 0, 0,
+		   0, 0, 0, 0, 0, 0, 0, 0,
+		   0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0},
+};
+
+static struct platform_device pm8058_leds_XC = {
+	.name	= "leds-pm8058",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &pm8058_leds_data_XC,
+	},
+};
 
 
 static struct akm8975_platform_data compass_platform_data = {
@@ -499,20 +1184,24 @@ static struct bma150_platform_data gsensor_platform_data = {
 	.chip_layout = 1,
 };
 
-static int config_mecha_proximity_gpios(int on)
+static uint32_t proximity_on_gpio_table[] = {
+	PCOM_GPIO_CFG(MECHA_GPIO_PS_INT_N,
+		0, GPIO_INPUT, PM_GPIO_PULL_NO, 0), /* PS_VOUT */
+};
+
+static uint32_t proximity_off_gpio_table[] = {
+	PCOM_GPIO_CFG(MECHA_GPIO_PS_INT_N,
+		0, GPIO_INPUT, PM_GPIO_PULL_DN, 0) /* PS_VOUT */
+};
+
+void config_mecha_proximity_gpios(int on)
 {
-	int ret, pull_state;
-
 	if (on)
-		pull_state = PM_GPIO_PULL_NO;
+		config_gpio_table(proximity_on_gpio_table,
+			ARRAY_SIZE(proximity_on_gpio_table));
 	else
-		pull_state = PM_GPIO_PULL_DN;
-
-	ret = pm8058_gpio_cfg(MECHA_GPIO_PS_INT_N, PM_GPIO_DIR_IN, 0, 0, pull_state,
-		PM_GPIO_VIN_L5, 0, PM_GPIO_FUNC_NORMAL, 0);
-	if (ret)
-		pr_err("%s PMIC GPIO P-sensor interrupt write failed\n", __func__);
-	return ret;
+		config_gpio_table(proximity_off_gpio_table,
+			ARRAY_SIZE(proximity_off_gpio_table));
 }
 
 static int __capella_cm3602_power(int on)
@@ -546,6 +1235,26 @@ static int __capella_cm3602_power(int on)
 	return rc;
 }
 
+static uint32_t als_shutdown_on_gpio_table[] = {
+	PCOM_GPIO_CFG(MECHA_ALS_SHUTDOWN,
+		0, GPIO_INPUT, PM_GPIO_PULL_UP_31P5, 0),
+};
+
+static uint32_t als_shutdown_off_gpio_table[] = {
+	PCOM_GPIO_CFG(MECHA_ALS_SHUTDOWN,
+		0, GPIO_INPUT, PM_GPIO_PULL_DN, 0)
+};
+
+void config_mecha_als_shutdown_gpios(int on)
+{
+	if (on)
+		config_gpio_table(als_shutdown_on_gpio_table,
+			ARRAY_SIZE(als_shutdown_on_gpio_table));
+	else
+		config_gpio_table(als_shutdown_off_gpio_table,
+			ARRAY_SIZE(als_shutdown_off_gpio_table));
+}
+
 static int __capella_cm3628_power(int on)
 {
 	int rc;
@@ -561,16 +1270,20 @@ static int __capella_cm3628_power(int on)
 		__func__, (on) ? "on" : "off");
 
 	if (on) {
+		config_mecha_als_shutdown_gpios(1);
+		gpio_set_value(PM8058_GPIO_PM_TO_SYS(MECHA_ALS_SHUTDOWN), 1);
 		rc = vreg_enable(vreg);
 		if (rc < 0)
 			printk(KERN_ERR "%s: vreg enable failed\n", __func__);
 		msleep(5);
-		pm8058_gpio_cfg(MECHA_ALS_SHUTDOWN, PM_GPIO_DIR_IN, 0, 0, PM_GPIO_PULL_UP_31P5, PM_GPIO_VIN_L5, 0, PM_GPIO_FUNC_NORMAL, 0);
+//		pm8058_gpio_cfg(MECHA_ALS_SHUTDOWN, PM_GPIO_DIR_IN, 0, 0, PM_GPIO_PULL_UP_31P5, PM_GPIO_VIN_L17, 0, PM_GPIO_FUNC_NORMAL, 0);
 	} else {
-		pm8058_gpio_cfg(MECHA_ALS_SHUTDOWN, PM_GPIO_DIR_IN, 0, 0, PM_GPIO_PULL_DN, PM_GPIO_VIN_L5, 0, PM_GPIO_FUNC_NORMAL, 0);
+//		pm8058_gpio_cfg(MECHA_ALS_SHUTDOWN, PM_GPIO_DIR_IN, 0, 0, PM_GPIO_PULL_DN, PM_GPIO_VIN_L17, 0, PM_GPIO_FUNC_NORMAL, 0);
 		rc = vreg_disable(vreg);
 		if (rc < 0)
 			printk(KERN_ERR "%s: vreg disable failed\n", __func__);
+		gpio_set_value(PM8058_GPIO_PM_TO_SYS(MECHA_ALS_SHUTDOWN), 0);
+		config_mecha_als_shutdown_gpios(0);
 	}
 
 	return rc;
@@ -697,6 +1410,72 @@ static int mecha_ts_power(int on)
 
 	return 0;
 }
+
+struct atmel_i2c_platform_data mecha_ts_atmel_data[] = {
+	{
+		.version = 0x0020,
+		.abs_x_min = 0,
+		.abs_x_max = 1023,
+		.abs_y_min = 0,
+		.abs_y_max = 959,
+		.abs_pressure_min = 0,
+		.abs_pressure_max = 255,
+		.abs_width_min = 0,
+		.abs_width_max = 20,
+		.gpio_irq = MECHA_GPIO_TP_INT_N,
+		.power = mecha_ts_power,
+		.config_T6 = {0, 0, 0, 0, 0, 0},
+		.config_T7 = {16, 15, 25},
+		.config_T8 = {10, 0, 5, 2, 0, 0, 5, 25, 4, 170},
+		.config_T9 = {139, 0, 0, 19, 11, 0, 16, 30, 3, 1, 0, 5, 2, 0, 4, 20, 10, 10, 0, 0, 0, 0, 250, 3, 42, 50, 143, 50, 135, 65, 40, 10},
+		.config_T15 = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		.config_T18 = {0, 0},
+		.config_T19 = {3, 0, 0, 52, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		.config_T20 = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		.config_T22 = {15, 0, 0, 0, 0, 0, 0, 0, 25, 0, 0, 0, 7, 18, 255, 255, 0},
+		.config_T23 = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		.config_T24 = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		.config_T25 = {3, 0, 40, 35, 136, 19, 0, 0, 0, 0, 0, 0, 0, 0},
+		.config_T28 = {0, 0, 3, 4, 8, 60},
+		.object_crc = {0xEA, 0x0B, 0x22},
+//		.cal_tchthr = {50, 55},
+		.cable_config = {35, 25, 8, 16},
+		.wlc_config = {20, 20, 50, 60, 50, 22, 22},
+		.wlc_freq = {38, 48, 58, 255, 255},
+		.GCAF_level = {20, 24, 28, 40, 63},
+	},
+	{
+		.version = 0x0015,
+		.abs_x_min = 0,
+		.abs_x_max = 1023,
+		.abs_y_min = 0,
+		.abs_y_max = 959,
+		.abs_pressure_min = 0,
+		.abs_pressure_max = 255,
+		.abs_width_min = 0,
+		.abs_width_max = 20,
+		.gpio_irq = MECHA_GPIO_TP_INT_N,
+		.power = mecha_ts_power,
+		.config_T6 = {0, 0, 0, 0, 0, 0},
+		.config_T7 = {16, 15, 25},
+		.config_T8 = {10, 0, 5, 2, 0, 0, 5, 25},
+		.config_T9 = {139, 0, 0, 19, 11, 0, 16, 30, 3, 1, 0, 5, 2, 0, 4, 20, 10, 10, 0, 0, 0, 0, 250, 3, 42, 50, 143, 50, 135, 65, 40},
+		.config_T15 = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		.config_T18 = {0, 0},
+		.config_T19 = {3, 0, 0, 52, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		.config_T20 = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		.config_T22 = {15, 0, 0, 0, 0, 0, 0, 0, 25, 0, 0, 0, 7, 18, 255, 255, 0},
+		.config_T23 = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		.config_T24 = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		.config_T25 = {3, 0, 40, 35, 136, 19, 0, 0, 0, 0, 0, 0, 0, 0},
+		.config_T27 = {0, 0, 0, 0, 0, 0, 0},
+		.config_T28 = {0, 0, 3, 4, 8, 60},
+		.object_crc = {0x11, 0x20, 0xDD},
+		.cable_config = {35, 25, 8, 16},
+		.wlc_config = {30, 30, 35, 45, 40, 8, 16},
+		.GCAF_level = {20, 24, 28, 40, 63},
+	},
+};
 
 static int mecha_smsc251x_switch_register(int (*callback)(uint8_t hub_enable))
 {
@@ -1533,295 +2312,6 @@ static struct platform_device msm_lpa_device = {
 		.platform_data = &lpa_pdata,
 	},
 };
-struct atmel_i2c_platform_data mecha_ts_atmel_data[] = {
-	{
-		.version = 0x0020,
-		.abs_x_min = 0,
-		.abs_x_max = 1023,
-		.abs_y_min = 0,
-		.abs_y_max = 959,
-		.abs_pressure_min = 0,
-		.abs_pressure_max = 255,
-		.abs_width_min = 0,
-		.abs_width_max = 20,
-		.gpio_irq = MECHA_GPIO_TP_INT_N,
-		.power = mecha_ts_atmel_power,
-		.config_T6 = {0, 0, 0, 0, 0, 0},
-		.config_T7 = {16, 15, 25},
-		.config_T8 = {10, 0, 5, 2, 0, 0, 5, 25, 4, 170},
-		.config_T9 = {139, 0, 0, 19, 11, 0, 16, 30, 3, 1, 0, 5, 2, 0, 4, 20, 10, 10, 0, 0, 0, 0, 250, 3, 42, 50, 143, 50, 135, 65, 40, 10},
-		.config_T15 = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		.config_T18 = {0, 0},
-		.config_T19 = {3, 0, 0, 52, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		.config_T20 = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		.config_T22 = {15, 0, 0, 0, 0, 0, 0, 0, 25, 0, 0, 0, 7, 18, 255, 255, 0},
-		.config_T23 = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		.config_T24 = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		.config_T25 = {3, 0, 40, 35, 136, 19, 0, 0, 0, 0, 0, 0, 0, 0},
-		.config_T28 = {0, 0, 3, 4, 8, 60},
-		.object_crc = {0xEA, 0x0B, 0x22},
-		.cal_tchthr = {50, 55},
-		.cable_config = {35, 25, 8, 16},
-		.wlc_config = {20, 20, 50, 60, 50, 22, 22},
-		.wlc_freq = {38, 48, 58, 255, 255},
-		.GCAF_level = {20, 24, 28, 40, 63},
-	},
-	{
-		.version = 0x0015,
-		.abs_x_min = 0,
-		.abs_x_max = 1023,
-		.abs_y_min = 0,
-		.abs_y_max = 959,
-		.abs_pressure_min = 0,
-		.abs_pressure_max = 255,
-		.abs_width_min = 0,
-		.abs_width_max = 20,
-		.gpio_irq = MECHA_GPIO_TP_INT_N,
-		.power = mecha_ts_atmel_power,
-		.config_T6 = {0, 0, 0, 0, 0, 0},
-		.config_T7 = {16, 15, 25},
-		.config_T8 = {10, 0, 5, 2, 0, 0, 5, 25},
-		.config_T9 = {139, 0, 0, 19, 11, 0, 16, 30, 3, 1, 0, 5, 2, 0, 4, 20, 10, 10, 0, 0, 0, 0, 250, 3, 42, 50, 143, 50, 135, 65, 40},
-		.config_T15 = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		.config_T18 = {0, 0},
-		.config_T19 = {3, 0, 0, 52, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		.config_T20 = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		.config_T22 = {15, 0, 0, 0, 0, 0, 0, 0, 25, 0, 0, 0, 7, 18, 255, 255, 0},
-		.config_T23 = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		.config_T24 = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		.config_T25 = {3, 0, 40, 35, 136, 19, 0, 0, 0, 0, 0, 0, 0, 0},
-		.config_T27 = {0, 0, 0, 0, 0, 0, 0},
-		.config_T28 = {0, 0, 3, 4, 8, 60},
-		.object_crc = {0x11, 0x20, 0xDD},
-		.cable_config = {35, 25, 8, 16},
-		.wlc_config = {30, 30, 35, 45, 40, 8, 16},
-		.GCAF_level = {20, 24, 28, 40, 63},
-	},
-};
-static struct microp_i2c_platform_data microp_data = {
-	.num_devices = ARRAY_SIZE(microp_devices),
-	.microp_devices = microp_devices,
-	.gpio_reset = PM8058_GPIO_PM_TO_SYS(MECHA_GPIO_UP_RESET_N),
-};
-
-static struct pm8058_led_config pm_led_config[] = {
-	{
-		.name = "amber",
-		.type = PM8058_LED_RGB,
-		.bank = 1,
-		.pwm_size = 9,
-		.clk = PM_PWM_CLK_32KHZ,
-		.pre_div = PM_PWM_PREDIVIDE_2,
-		.pre_div_exp = 1,
-		.pwm_value = 511,
-	},
-	{
-		.name = "green",
-		.type = PM8058_LED_RGB,
-		.bank = 0,
-		.pwm_size = 9,
-		.clk = PM_PWM_CLK_32KHZ,
-		.pre_div = PM_PWM_PREDIVIDE_2,
-		.pre_div_exp = 1,
-		.pwm_value = 511,
-	},
-	{
-		.name = "button-backlight",
-		.type = PM8058_LED_CURRENT,
-		.bank = 3,
-		.flags = PM8058_LED_LTU_EN | PM8058_LED_FADE_EN,
-		.period_us = USEC_PER_SEC / 1000,
-		.start_index = 0,
-		.duites_size = 8,
-		.duty_time_ms = 32,
-		.lut_flag = PM_PWM_LUT_RAMP_UP | PM_PWM_LUT_PAUSE_HI_EN,
-		.out_current = 200,
-	},
-
-	
-
-
-};
-
-static struct pm8058_led_platform_data pm8058_leds_data = {
-	.led_config = pm_led_config,
-	.num_leds = ARRAY_SIZE(pm_led_config),
-	.duties = {0, 15, 30, 45, 60, 75, 90, 100,
-		   100, 90, 75, 60, 45, 30, 15, 0,
-		   0, 0, 0, 0, 0, 0, 0, 0,
-		   0, 0, 0, 0, 0, 0, 0, 0,
-		   0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0},
-};
-
-static struct platform_device pm8058_leds = {
-	.name	= "leds-pm8058",
-	.id	= -1,
-	.dev	= {
-		.platform_data	= &pm8058_leds_data,
-	},
-};
-
-
-static struct pm8058_led_config pm_led_config_XC[] = {
-	{
-		.name = "green",
-		.type = PM8058_LED_RGB,
-		.bank = 0,
-		.pwm_size = 9,
-		.clk = PM_PWM_CLK_32KHZ,
-		.pre_div = PM_PWM_PREDIVIDE_2,
-		.pre_div_exp = 1,
-		.pwm_value = 511,
-	},
-	{
-		.name = "amber",
-		.type = PM8058_LED_RGB,
-		.bank = 1,
-		.pwm_size = 9,
-		.clk = PM_PWM_CLK_32KHZ,
-		.pre_div = PM_PWM_PREDIVIDE_2,
-		.pre_div_exp = 1,
-		.pwm_value = 511,
-	},
-	{
-		.name = "button-backlight",
-		.type = PM8058_LED_DRVX,
-		.bank = 6,
-		.flags = PM8058_LED_LTU_EN | PM8058_LED_FADE_EN,
-		.period_us = USEC_PER_SEC / 1000,
-		.start_index = 0,
-		.duites_size = 8,
-		.duty_time_ms = 32,
-		.lut_flag = PM_PWM_LUT_RAMP_UP | PM_PWM_LUT_PAUSE_HI_EN,
-		.out_current = 6,
-	},
-
-};
-
-static struct pm8058_led_platform_data pm8058_leds_data_XC = {
-static int pm8058_gpios_init(void)
-{
-	int rc;
-	static struct pm_gpio tp_rstz = {
-		.direction      = PM_GPIO_DIR_OUT,
-		.output_buffer  = PM_GPIO_OUT_BUF_CMOS,
-		.output_value   = 1,
-		.pull           = PM_GPIO_PULL_NO,
-		.vin_sel        = PM8058_GPIO_VIN_L5,
-		.out_strength   = PM_GPIO_STRENGTH_HIGH,
-		.function       = PM_GPIO_FUNC_NORMAL,
-		.inv_int_pol    = 0,
-	};
-
-	static struct pm_gpio vol_up = {
-		.direction      = PM_GPIO_DIR_IN,
-		.output_buffer  = 0,
-		.output_value   = 0,
-		.pull           = PM_GPIO_PULL_UP_31P5,
-		.vin_sel        = PM8058_GPIO_VIN_S3,
-		.out_strength   = 0,
-		.function       = PM_GPIO_FUNC_NORMAL,
-		.inv_int_pol    = 0,
-	};
-
-	static struct pm_gpio vol_dn = {
-		.direction      = PM_GPIO_DIR_IN,
-		.output_buffer  = 0,
-		.output_value   = 0,
-		.pull           = PM_GPIO_PULL_UP_31P5,
-		.vin_sel        = PM8058_GPIO_VIN_S3,
-		.out_strength   = 0,
-		.function       = PM_GPIO_FUNC_NORMAL,
-		.inv_int_pol    = 0,
-	};
-
-	static struct pm_gpio sdmc_cd_n = {
-		.direction      = PM_GPIO_DIR_IN,
-		.output_buffer  = 0,
-		.output_value   = 0,
-		.pull           = PM_GPIO_PULL_UP_31P5,
-		.vin_sel        = PM8058_GPIO_VIN_L5,
-		.out_strength   = 0,
-		.function       = PM_GPIO_FUNC_NORMAL,
-		.inv_int_pol    = 0,
-	};
-
-	static struct pm_gpio headset = {
-		.direction      = PM_GPIO_DIR_IN,
-		.output_buffer  = 0,
-		.output_value   = 0,
-		.pull           = PM_GPIO_PULL_UP_31P5,
-		.vin_sel        = PM8058_GPIO_VIN_S3,
-		.out_strength   = 0,
-		.function       = PM_GPIO_FUNC_NORMAL,
-		.inv_int_pol    = 0,
-	};
-
-	/* led */
-	pm8058_gpio_cfg(MECHA_GREEN_LED, PM_GPIO_DIR_OUT, PM_GPIO_OUT_BUF_CMOS, 1, PM_GPIO_PULL_NO,
-		PM_GPIO_VIN_L5, PM_GPIO_STRENGTH_HIGH, PM_GPIO_FUNC_2, 0);
-	pm8058_gpio_cfg(MECHA_AMBER_LED, PM_GPIO_DIR_OUT, PM_GPIO_OUT_BUF_CMOS, 1, PM_GPIO_PULL_NO,
-		PM_GPIO_VIN_L5, PM_GPIO_STRENGTH_HIGH, PM_GPIO_FUNC_2, 0);
-/*	pm8058_gpio_cfg(MECHA_KEYPAD_LED, PM_GPIO_DIR_OUT, PM_GPIO_OUT_BUF_CMOS, 0, PM_GPIO_PULL_NO,
-		PM_GPIO_VIN_S3, PM_GPIO_STRENGTH_HIGH, PM_GPIO_FUNC_2, 0); */
-
-	if ((engineerid & 0x3) == 0x0)
-	pm8058_gpio_cfg(MECHA_ALS_SHUTDOWN, PM_GPIO_DIR_OUT, PM_GPIO_OUT_BUF_CMOS, 0, PM_GPIO_PULL_NO,
-		PM_GPIO_VIN_L5, PM_GPIO_STRENGTH_HIGH, PM_GPIO_FUNC_NORMAL, 0);
-	/*else
-		pm8058_gpio_cfg(MECHA_ALS_SHUTDOWN, PM_GPIO_DIR_IN, 0, 0, PM_GPIO_PULL_UP_31P5, PM_GPIO_VIN_L5, 0, PM_GPIO_FUNC_NORMAL, 0);
-	*/
-	/* P-sensor and light sensor */
-	pm8058_gpio_cfg(MECHA_GPIO_PS_EN, PM_GPIO_DIR_OUT, PM_GPIO_OUT_BUF_CMOS, 0, PM_GPIO_PULL_NO,
-		PM_GPIO_VIN_L5, PM_GPIO_STRENGTH_HIGH, PM_GPIO_FUNC_NORMAL, 0);
-	pm8058_gpio_cfg(MECHA_GPIO_PS_INT_N, PM_GPIO_DIR_IN, 0, 0, PM_GPIO_PULL_DN, PM_GPIO_VIN_L5, 0, PM_GPIO_FUNC_NORMAL, 0);
-
-	/* MicroP INT*/
-	pm8058_gpio_cfg(MECHA_GPIO_UP_INT_N, PM_GPIO_DIR_IN, 0, 0, PM_GPIO_PULL_NO, PM_GPIO_VIN_L5, 0, PM_GPIO_FUNC_NORMAL, 0);
-
-	/* G Sensor INT*/
-	pm8058_gpio_cfg(MECHA_GPIO_GSENSOR_INT_N, PM_GPIO_DIR_IN, 0, 0, PM_GPIO_PULL_NO, PM_GPIO_VIN_L5, 0, PM_GPIO_FUNC_NORMAL, 0);
-	/* E-Compass INT */
-	pm8058_gpio_cfg(MECHA_GPIO_COMPASS_INT_N, PM_GPIO_DIR_IN, 0, 0, PM_GPIO_PULL_NO, PM_GPIO_VIN_L5, 0, PM_GPIO_FUNC_NORMAL, 0);
-	/* uP Reset */
-	pm8058_gpio_cfg(MECHA_GPIO_UP_RESET_N, PM_GPIO_DIR_OUT, PM_GPIO_OUT_BUF_CMOS, 1, PM_GPIO_PULL_NO,
-			PM_GPIO_VIN_L5, PM_GPIO_STRENGTH_HIGH, PM_GPIO_FUNC_NORMAL, 0);
-
-	/* usb hub switch */
-	if (system_rev >= 2)
-		pm8058_gpio_cfg(MECHA_GPIO_USB_HUB_SWITCH, PM_GPIO_DIR_OUT, PM_GPIO_OUT_BUF_CMOS, 0,
-			PM_GPIO_PULL_NO, PM_GPIO_VIN_L5, PM_GPIO_STRENGTH_HIGH, PM_GPIO_FUNC_NORMAL, 0);
-	/* usb hub reset*/
-	pm8058_gpio_cfg(MECHA_USB_HUB_RESET, PM_GPIO_DIR_OUT, PM_GPIO_OUT_BUF_CMOS, 0, PM_GPIO_PULL_NO,
-		PM_GPIO_VIN_L5, PM_GPIO_STRENGTH_HIGH, PM_GPIO_FUNC_NORMAL, 0);
-	/* usb hub power*/
-	pm8058_gpio_cfg(MECHA_USB_HUB_PWR, PM_GPIO_DIR_OUT, PM_GPIO_OUT_BUF_CMOS, 0, PM_GPIO_PULL_NO,
-		PM_GPIO_VIN_L5, PM_GPIO_STRENGTH_HIGH, PM_GPIO_FUNC_NORMAL, 0);
-
-	return 0;
-}
-	.led_config = pm_led_config_XC,
-	.num_leds = ARRAY_SIZE(pm_led_config),
-	.duties = {0, 15, 30, 45, 60, 75, 90, 100,
-		   100, 90, 75, 60, 45, 30, 15, 0,
-		   0, 0, 0, 0, 0, 0, 0, 0,
-		   0, 0, 0, 0, 0, 0, 0, 0,
-		   0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0},
-};
-
-static struct platform_device pm8058_leds_XC = {
-	.name	= "leds-pm8058",
-	.id	= -1,
-	.dev	= {
-		.platform_data	= &pm8058_leds_data_XC,
-	},
-};
 
 #define DEC0_FORMAT ((1<<MSM_ADSP_CODEC_MP3)| \
 	(1<<MSM_ADSP_CODEC_AAC)|(1<<MSM_ADSP_CODEC_WMA)| \
@@ -2111,8 +2601,8 @@ static int msm_qsd_spi_dma_config(void)
 #endif
 static struct msm_spi_platform_data qsd_spi_pdata = {
 	.max_clock_speed = 26000000,
-	.clk_name = "spi_clk",
-	.pclk_name = "spi_pclk",
+//	.clk_name = "spi_clk",
+//	.pclk_name = "spi_pclk",
 	.gpio_config  = msm_qsd_spi_gpio_config,
 	.gpio_release = msm_qsd_spi_gpio_release,
 //	.dma_config = msm_qsd_spi_dma_config,
@@ -2333,7 +2823,7 @@ static void config_mecha_flashlight_gpios(void)
 	config_gpio_table(flashlight_gpio_table,
 		ARRAY_SIZE(flashlight_gpio_table));
 
-	pm8058_gpio_cfg(MECHA_GPIO_FLASH_EN, PM_GPIO_DIR_OUT, PM_GPIO_OUT_BUF_CMOS, 0, PM_GPIO_PULL_NO, PM_GPIO_VIN_L5, PM_GPIO_STRENGTH_HIGH, PM_GPIO_FUNC_NORMAL, 0);
+//	pm8058_gpio_cfg(MECHA_GPIO_FLASH_EN, PM_GPIO_DIR_OUT, PM_GPIO_OUT_BUF_CMOS, 0, PM_GPIO_PULL_NO, PM_GPIO_VIN_L17, PM_GPIO_STRENGTH_HIGH, PM_GPIO_FUNC_NORMAL, 0);
 }
 
 static void config_mecha_emmc_gpios(void)
@@ -2445,7 +2935,7 @@ static struct msm_serial_hs_platform_data msm_uart_dm1_pdata = {
 static char bdaddress[20];
 extern unsigned char *get_bt_bd_ram(void);
 
-static void bt_export_bd_address(void)
+/*static void bt_export_bd_address(void)
 {
 	unsigned char cTemp[6];
 
@@ -2453,7 +2943,7 @@ static void bt_export_bd_address(void)
 	sprintf(bdaddress, "%02x:%02x:%02x:%02x:%02x:%02x",
 		cTemp[0], cTemp[1], cTemp[2], cTemp[3], cTemp[4], cTemp[5]);
 	printk(KERN_INFO "YoYo--BD_ADDRESS=%s\n", bdaddress);
-}
+}*/
 
 module_param_string(bdaddress, bdaddress, sizeof(bdaddress), S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(bdaddress, "BT MAC ADDRESS");
@@ -2466,17 +2956,62 @@ static char bt_fw_version[10] = "v2.0.38";
 module_param_string(bt_fw_version, bt_fw_version, sizeof(bt_fw_version), S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(bt_fw_version, "BT's fw version");
 
-static struct msm_i2c_device_platform_data msm_i2c_pdata = {
+static struct msm_gpio msm_i2c_gpios_hw[] = {
+	{ GPIO_CFG(70, 1, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_16MA), "i2c_scl" },
+	{ GPIO_CFG(71, 1, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_16MA), "i2c_sda" },
+};
+
+static struct msm_gpio msm_i2c_gpios_io[] = {
+	{ GPIO_CFG(70, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_16MA), "i2c_scl" },
+	{ GPIO_CFG(71, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_16MA), "i2c_sda" },
+};
+
+static struct msm_gpio qup_i2c_gpios_io[] = {
+	{ GPIO_CFG(16, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_16MA), "qup_scl" },
+	{ GPIO_CFG(17, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_16MA), "qup_sda" },
+
+};
+static struct msm_gpio qup_i2c_gpios_hw[] = {
+	{ GPIO_CFG(16, 2, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_16MA), "qup_scl" },
+	{ GPIO_CFG(17, 2, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_16MA), "qup_sda" },
+};
+
+static void
+msm_i2c_gpio_config(int adap_id, int config_type)
+{
+	struct msm_gpio *msm_i2c_table;
+
+	/* Each adapter gets 2 lines from the table */
+	if (adap_id > 0)
+		return;
+	if (config_type)
+		msm_i2c_table = &msm_i2c_gpios_hw[adap_id*2];
+	else
+		msm_i2c_table = &msm_i2c_gpios_io[adap_id*2];
+	msm_gpios_enable(msm_i2c_table, 2);
+}
+
+static struct msm_i2c_platform_data msm_i2c_pdata = {
+	.clk_freq = 400000,
+	.pri_clk = 70,
+	.pri_dat = 71,
+	.rmutex  = 1,
+        //	.rsl_id = "D:I2C02000021",
+        .rsl_id = "S:6",
+	.msm_i2c_config_gpio = msm_i2c_gpio_config,
+};
+
+/*static struct msm_i2c_platform_data msm_i2c_pdata = {
 	.i2c_clock = 100000,
 	.clock_strength = GPIO_8MA,
 	.data_strength = GPIO_4MA,
-};
+};*/
 
-static void __init msm_device_i2c_init(void)
+/*static void __init msm_device_i2c_init(void)
 {
 	msm_i2c_gpio_init();
 	msm_device_i2c.dev.platform_data = &msm_i2c_pdata;
-}
+}*/
 
 //static struct vreg *qup_vreg;
 static void qup_i2c_gpio_config(int adap_id, int config_type)
