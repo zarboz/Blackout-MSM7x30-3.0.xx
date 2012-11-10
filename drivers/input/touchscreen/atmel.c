@@ -1493,7 +1493,7 @@ static void multi_input_report(struct atmel_ts_data *ts)
 				if ((barrier[0] == true) ||
 				   ((ts->finger_data[loop_i].x > barrier1) &&
 				    (ts->finger_data[loop_i].x < barrier2) &&
-				    (ts->finger_data[loop_i].y > 950))) {
+				    (ts->finger_data[loop_i].y > 1000))) {
 					if ((led_exec_count == true) && (scr_on_touch == false) && (s2w_switch == 2)) {
 						pm8058_drvx_led_brightness_set(sweep2wake_leddev, 255);
 						printk(KERN_INFO "[sweep2wake]: activated button backlight.\n");
@@ -1503,10 +1503,10 @@ static void multi_input_report(struct atmel_ts_data *ts)
 					if ((barrier[1] == true) ||
 					   ((ts->finger_data[loop_i].x > barrier2) &&
 					    (ts->finger_data[loop_i].x < barrier3) &&
-					    (ts->finger_data[loop_i].y > 950))) {
+					    (ts->finger_data[loop_i].y > 1000))) {
 						barrier[1] = true;
 						if ((ts->finger_data[loop_i].x > barrier3) &&
-						    (ts->finger_data[loop_i].y > 950)) {
+						    (ts->finger_data[loop_i].y > 1000)) {
 							if (exec_count) {
 								printk(KERN_INFO "[sweep2wake]: POWER ON.\n");
 								sweep2wake_pwrtrigger();
